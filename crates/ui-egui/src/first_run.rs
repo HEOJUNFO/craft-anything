@@ -9,19 +9,31 @@ use craft_anything_ai::{BackendKind, Detected};
 use craft_anything_engine::Mode;
 use egui::{Align2, RichText, Ui, Vec2};
 
+/// Height of the footer under each step: the step name and Back sit 34 px above the window's
+/// bottom edge and reach 14 px either side of it.
+const FOOTER: f32 = 52.0;
+
 pub fn show(app: &mut CraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let full = ui.max_rect();
     let width = 640.0_f32.min(full.width() - 48.0);
-    ui.add_space(((full.height() - 560.0) / 2.0).clamp(24.0, 120.0));
-    ui.vertical_centered(|ui| {
-        ui.set_max_width(width);
-        match app.state.first_run {
-            FirstRunStep::Welcome => welcome(app, ui),
-            FirstRunStep::Brain => brain(app, ui, width),
-            FirstRunStep::Purpose => purpose(app, ui, width),
-            FirstRunStep::Done => done(app, ui),
-        }
+    // The step scrolls above the footer (step name, Back, progress line): at the smallest window,
+    // 760×520, Purpose is taller than the room left and its Continue was out of reach (#231).
+    let body = egui::Rect::from_min_max(full.min, egui::pos2(full.right(), (full.bottom() - FOOTER).max(full.top())));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(body), |ui| {
+        egui::ScrollArea::vertical().id_salt("first-run").auto_shrink(false).show(ui, |ui| {
+            ui.add_space(((full.height() - 560.0) / 2.0).clamp(24.0, 120.0));
+            ui.vertical_centered(|ui| {
+                ui.set_max_width(width);
+                match app.state.first_run {
+                    FirstRunStep::Welcome => welcome(app, ui),
+                    FirstRunStep::Brain => brain(app, ui, width),
+                    FirstRunStep::Purpose => purpose(app, ui, width),
+                    FirstRunStep::Done => done(app, ui),
+                }
+            });
+            ui.add_space(16.0);
+        });
     });
     // Where you are, the ArtCraft way: "02 / 04  AI", plus a progress hairline.
     let step = app.state.first_run.index();

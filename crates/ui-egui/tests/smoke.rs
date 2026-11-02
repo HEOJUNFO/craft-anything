@@ -2111,6 +2111,39 @@ fn messages_float_over_the_screen_and_an_error_isnt_replaced() {
     assert_eq!(h.get_by_label("Ask for a change").rect(), before, "the screen under the messages doesn't move");
 }
 
+/// At the smallest window the desktop allows, 760×520, Purpose is taller than the room above the
+/// footer: it scrolls, and Continue can be scrolled to and clicked (#231).
+#[test]
+fn first_run_purpose_reaches_continue_at_the_minimum_window() {
+    let (w, h_px) = (760.0, 520.0);
+    let mut h = harness_sized(egui::vec2(w, h_px), || demo::app(demo::engine(Mode::Beginner, false)));
+    h.run_steps(3);
+    h.get_by_label("I'm new to this").click();
+    h.run_steps(3);
+    h.get_by_label("No AI for now").click();
+    h.run_steps(3);
+    assert_eq!(h.state().state.first_run, FirstRunStep::Purpose);
+    let back = h.get_by_label("Back").rect();
+    let before = h.get_by_label("Continue").rect();
+    assert!(before.bottom() > back.top(), "Purpose is taller than the window here: {before:?}");
+    // Scroll the step with the wheel over its middle.
+    h.hover_at(egui::pos2(w / 2.0, h_px / 2.0));
+    for _ in 0..10 {
+        h.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -60.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: Default::default(),
+        });
+        h.run_steps(2);
+    }
+    let after = h.get_by_label("Continue").rect();
+    assert!(after.bottom() <= back.top(), "Continue clears the footer once scrolled: {after:?} vs Back {back:?}");
+    h.get_by_label("Continue").click();
+    h.run_steps(3);
+    assert_eq!(h.state().state.first_run, FirstRunStep::Done);
+}
+
 #[test]
 fn a_narrow_window_folds_the_sidebar_and_puts_the_project_details_above_the_feed() {
     let mut h = harness_sized(egui::vec2(760.0, 820.0), || {
